@@ -128,7 +128,8 @@
 	}
 </script>
 
-<div class="relative min-h-[calc(100vh-20px)] w-screen bg-p-navy overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-[100vh] bg-p-red-1 -translate-y-full pointer-events-none"></div>
+<div class="relative min-h-[calc(100vh-20px)] w-full bg-p-navy overflow-hidden">
 	<Particles density={20} maxSpeed={3} />
 	<Particles density={3} minSpeed={2} maxSpeed={4} z={1} twColor="--color-p-gray" />
 	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -192,7 +193,7 @@
 <img src="/down.png" alt="Scroll Down" class="w-[25px] absolute left-1/2 -translate-x-1/2 -translate-y-[12vh]">
 
 <div class="bg-p-red-1 h-[20px] relative z-2">
-    <div class="w-screen h-[40px] -translate-y-full bg-[url(/divider-tile.png)] bg-size-[auto_100%] bg-repeat-x animate-move-bg"></div>
+    <div class="w-full h-[40px] -translate-y-full bg-[url(/divider-tile.png)] bg-size-[auto_100%] bg-repeat-x animate-move-bg"></div>
 </div>
 
 <div class=" bg-p-red-1 px-12 max-sm:px-4 pt-16 pb-36">
@@ -274,13 +275,14 @@
 <!-- <div class="bg-p-red-1 relative z-2">
     <div class="w-screen h-[100px] -translate-y-[65px] bg-[url(/divider-tentacles.png)] bg-size-[auto_100%] bg-repeat-x"></div>
 </div> -->
+<div class="sticky bottom-0 h-screen bg-p-navy -mt-[100vh] -z-10 pointer-events-none"></div>
 
 <style>
 	:global(*) {
 		image-rendering: pixelated;
 	}
-    :global(body) {
-        background-color: var(--color-p-navy);
+    :global(html) {
+        background-color: var(--color-p-red-1);
     }
 
     .animate-move-bg {
