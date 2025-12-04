@@ -32,7 +32,7 @@
 
 	--text-p8: 1.55rem;
 	--text-p8-title: 4.95rem;
-	--leading-p8-title: 0.85;
+	--leading-p8-title: 0.7;
 }
 
 @layer utilities {
@@ -54,7 +54,7 @@
 		/* background-color: currentColor; */
 		background-image: linear-gradient(to right, var(--underline-color, currentColor) 5px, transparent 5px);
 		background-size: 10px 100%;
-		transform: translateY(10px);
+		transform: translateY(var(--underline-offset, 8.25px));
 		pointer-events: none;
 	}
 }

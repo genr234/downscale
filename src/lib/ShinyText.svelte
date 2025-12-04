@@ -1,6 +1,8 @@
 <script lang="ts">
     export let c1 = "var(--color-p-white)";
     export let c2 = "var(--color-p-lightgray)";
+    export let c1Hover = c1;
+    export let c2Hover = c2;
     export let style = "";
 </script>
 

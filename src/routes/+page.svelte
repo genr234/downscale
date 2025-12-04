@@ -3,6 +3,129 @@
 	import Particles from "$lib/Particles.svelte";
 	import OutlineFilter from "$lib/OutlineFilter.svelte";
 	import ShinyTitle from "$lib/ShinyTitle.svelte";
+	import gsap from "gsap";
+
+	let showEmailInput = $state(false);
+	let isSubmitting = $state(false);
+	let isSubmitted = $state(false);
+	let hasError = $state(false);
+	let errorMessage = $state("");
+	let emailValue = $state("");
+	let emailWrapper: HTMLDivElement = undefined!;
+	let emailInputContainer: HTMLDivElement = undefined!;
+	let fillElement: HTMLDivElement = undefined!;
+	let errorWrapper: HTMLDivElement = undefined!;
+
+	async function handleSubmit() {
+		if (isSubmitting || isSubmitted) return;
+		isSubmitting = true;
+		hasError = false;
+		errorMessage = "";
+
+		try {
+			const res = await fetch("/api/rsvp", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: emailValue })
+			});
+
+			const data = await res.json();
+
+			if (!res.ok) {
+				throw new Error(data.error || "Something went wrong");
+			}
+
+			isSubmitting = false;
+			isSubmitted = true;
+
+			if (errorWrapper.offsetHeight > 0) {
+				gsap.to(errorWrapper, {
+					height: 0,
+					duration: 0.3,
+					ease: "power3.out",
+					onUpdate: function () {
+						const current = parseFloat(gsap.getProperty(errorWrapper, "height") as string);
+						errorWrapper.style.height = Math.round(current / 5) * 5 + "px";
+					}
+				});
+			}
+		} catch (err) {
+			isSubmitting = false;
+			hasError = true;
+			isSubmitted = true;
+			errorMessage = err instanceof Error ? err.message : "Something went wrong";
+
+			gsap.fromTo(
+				errorWrapper,
+				{ height: 0 },
+				{
+					height: "auto",
+					duration: 0.3,
+					ease: "power3.out",
+					onUpdate: function () {
+						const current = parseFloat(gsap.getProperty(errorWrapper, "height") as string);
+						errorWrapper.style.height = Math.round(current / 5) * 5 + "px";
+					}
+				}
+			);
+		}
+
+		const targetHeight = emailInputContainer.offsetHeight;
+		gsap.fromTo(
+			fillElement,
+			{ y: 0 },
+			{
+				y: -targetHeight,
+				duration: 0.4,
+				ease: "power3.out",
+				onUpdate: function () {
+					const current = parseFloat(gsap.getProperty(fillElement, "y") as string);
+					gsap.set(fillElement, { y: Math.round(current / 5) * 5 });
+				},
+				onComplete: function () {
+					if (hasError) {
+						setTimeout(() => {
+							gsap.to(fillElement, {
+								y: 0,
+								duration: 0.4,
+								ease: "power3.out",
+								onUpdate: function () {
+									const current = parseFloat(gsap.getProperty(fillElement, "y") as string);
+									gsap.set(fillElement, { y: Math.round(current / 5) * 5 });
+								},
+								onComplete: function () {
+									isSubmitted = false;
+									hasError = false;
+								}
+							});
+						}, 750);
+					}
+				}
+			}
+		);
+	}
+
+	function revealEmail() {
+		if (showEmailInput) {
+			handleSubmit();
+			return;
+		}
+		showEmailInput = true;
+		const targetHeight = emailWrapper.scrollHeight;
+		gsap.fromTo(
+			emailWrapper,
+			{ height: 0 },
+			{
+				height: targetHeight,
+				duration: 0.4,
+				ease: "power3.out",
+				onUpdate: function () {
+					const current = parseFloat(gsap.getProperty(emailWrapper, "height") as string);
+					emailWrapper.style.height = Math.round(current / 5) * 5 + "px";
+				}
+			}
+		);
+	}
 </script>
 
 <div class="relative min-h-[calc(100vh-20px)] w-screen bg-p-navy overflow-hidden">
@@ -16,12 +139,13 @@
 				class="absolute top-1/2 left-1/2 -z-1 w-[375px] -translate-x-[calc(50%-10px)] -translate-y-[calc(50%+11px)] select-none"
 				draggable="false"
 			/>
-            <!-- TODO: animate -->
             <p class="text-transparent selection:bg-p-red-1 font-title text-p8-title absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
                 downscale
             </p>
 			<OutlineFilter style="pointer-events: none; user-select: none;">
-                <img src="/downscale-plain.png" alt="downscale" class="w-[415px]"/>
+                <div class="w-[415px] overflow-hidden aspect-[415/107]">
+                    <img src="/downscale-plain-anim.png" alt="downscale" class="w-full animate-frame-swap"/>
+                </div>
             </OutlineFilter>
             <!-- <img src="/downscale.png" alt="downscale" class="w-[425px] select-none" draggable="false" /> -->
 		</div>
@@ -31,9 +155,11 @@
                 <ShinyText c1="var(--color-p-white)" c2="var(--color-p-lightgray)">
                     Make a retro game with
                 </ShinyText>
-                <ShinyText c1="var(--color-p-red-1)" c2="var(--color-p-red-2)">
-                    PICO-8
-                </ShinyText>
+                <a href="https://www.lexaloffle.com/pico-8.php" class="underline-p8 [--underline-color:var(--color-p-red-2)]" target="_blank">
+                    <span id="shiny-text" class="text-p8 w-max text-transparent bg-clip-text bg-[linear-gradient(to_bottom,var(--color-p-red-1)_36%,var(--color-p-red-2)_36%)] hover:bg-[linear-gradient(to_bottom,var(--color-p-white)_36%,var(--color-p-lightgray)_36%)]">
+                        PICO-8
+                    </span>
+                </a>
             </p>
             <div class="mt-4 w-max leading-9.5 mx-auto">
                 <ShinyText c1="var(--color-p-white)" c2="var(--color-p-lightgray)">
@@ -43,13 +169,19 @@
                     PICO-8 LICENSE
                 </ShinyText>
                 <br>
-                <ShinyText c1="var(--color-p-red-2)" c2="var(--color-p-red-3)" style="text-align: right; display: inline-block; width: 100%;">
-                    + CUSTOM STICKER
-                </ShinyText>
-                <br>
-                <ShinyText c1="var(--color-p-red-2)" c2="var(--color-p-red-3)" style="text-align: right; display: inline-block; width: 100%;">
-                    + STEAM GIFTCARD
-                </ShinyText>
+                <div class="ml-auto w-max text-right">
+                    <ShinyText c1="var(--color-p-red-2)" c2="var(--color-p-red-3)">
+                        + STEAM GIFTCARD
+                    </ShinyText>
+                    <br>
+                    <ShinyText c1="var(--color-p-red-2)" c2="var(--color-p-red-3)">
+                        + WALL POSTER
+                    </ShinyText>
+                    <br>
+                    <ShinyText c1="var(--color-p-red-2)" c2="var(--color-p-red-3)">
+                        + STICKERS
+                    </ShinyText>
+                </div>
             </div>
         </div>
 	</div>
@@ -63,12 +195,12 @@
     <div class="w-screen h-[40px] -translate-y-full bg-[url(/divider-tile.png)] bg-size-[auto_100%] bg-repeat-x animate-move-bg"></div>
 </div>
 
-<div class="min-h-screen bg-p-red-1 px-12 max-sm:px-4">
+<div class=" bg-p-red-1 px-12 max-sm:px-4 pt-16 pb-36">
     
-    <h1 class="text-p8-title leading-p8-title font-title pt-8 text-center -mb-[25px] relative z-1">
+    <h1 class="text-p8-title leading-p8-title font-title pt-8 text-center -mb-[18.1px] relative z-1">
         <OutlineFilter>
             <ShinyTitle c1="var(--color-p-white)" c2="var(--color-p-lightgray)">
-                what is this?
+                coming very soon...
             </ShinyTitle>
         </OutlineFilter>
     </h1>
@@ -83,20 +215,60 @@
 
             downscale
             
-            is a <a href="https://hackclub.com" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">Hack Club</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3"> program about making retro games with 
+            is a <a href="https://hackclub.com" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">Hack Club</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3"> program about building retro games with <a href="https://www.lexaloffle.com/pico-8.php" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">PICO-8</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3">.
+
+
+            
         </p>
-    </div>
-    <p class="text-p8 text-p-white">
-        What is PICO-8?
-        Well, what's a fantasy console then?
-        Why limit yourself?
-        Who is this for?
-        teenagers who are interested in gamedev + beginners and any skill level 
-        What can I get?
-        this is for people who enjoy making for the sake of making something cool-- the prizes are awesome but you should do it because it's fun!
-        How do I start?
-    </p>
-    
+
+        <div class="mt-10 mb-6 mx-auto w-max flex flex-col items-center">
+            <div class="email-wrapper" bind:this={emailWrapper}>
+                <div class="email-inner">
+                    <div class="relative overflow-hidden" bind:this={emailInputContainer}>
+                        <input
+                            type="email"
+                            placeholder="YOUR EMAIL"
+                            bind:value={emailValue}
+                            disabled={isSubmitted && !hasError}
+                            class="border-p-red-2 border-[5px] pt-[10px] pb-[6px] px-[15px] w-max text-p8 text-p-red-1 placeholder:text-p-red-2/50 focus:outline-none disabled:cursor-default"
+                        />
+                        {#if isSubmitting}
+                            <div class="absolute right-[20px] top-1/2 -translate-y-1/2">
+                                <OutlineFilter>
+                                    <div class="w-[25px] h-[25px] overflow-hidden">
+                                        <img src="/spinner.png" alt="" class="w-full animate-spinner scale-105 origin-top" />
+                                    </div>
+                                </OutlineFilter>
+                            </div>
+                        {/if}
+                        <div
+                            bind:this={fillElement}
+                            class="absolute top-full left-0 right-0 h-full bg-p-red-1 flex items-center justify-center"
+                        >
+                            {#if hasError}
+                                <img src="/x.png" alt="" class="w-[25px] h-[25px]" />
+                            {:else}
+                                <span class="text-p8 text-p-white flex items-center gap-[10px] translate-y-[3px]">YOU'RE ALL SET <img src="/checkmark.png" alt="" class="w-[25px] h-[20px]" /></span>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button
+                onclick={revealEmail}
+                class="border-p-red-1 border-[5px] pt-[10px] pb-[6px] px-[15px] text-center w-full relative after:absolute after:w-[calc(100%+10px)] after:h-[5px] after:-left-[5px] after:-bottom-[15px] after:bg-p-red-3 before:absolute before:w-[calc(100%+10px)] before:h-[5px] before:-left-[5px] before:-bottom-[10px] hover:bg-p-red-1 group cursor-pointer active:translate-y-[5px] active:after:hidden active:before:hidden"
+            >
+                <span class="text-p8 text-p-red-1">
+                    <span id="shiny-text" class="text-p8 w-max text-transparent bg-clip-text bg-[linear-gradient(to_bottom,var(--color-p-red-1)_36%,var(--color-p-red-2)_36%)] group-hover:bg-[linear-gradient(to_bottom,var(--color-p-white)_36%,var(--color-p-white)_36%)]">
+                        TELL ME WHEN IT'S HERE
+                    </span>
+                </span>
+            </button>
+            <div bind:this={errorWrapper} class="h-0 overflow-hidden">
+                <p class="text-p8 text-p-red-2 pt-[26px] text-center">{errorMessage}</p>
+            </div>
+        </div>
+    </div>    
 </div>
 
 <!-- <div class="bg-p-red-1 relative z-2">
@@ -112,7 +284,6 @@
     }
 
     .animate-move-bg {
-        /* animation: move-bg 5s steps(10) infinite; */
         animation: move-bg 8s linear infinite;
     }
     @keyframes move-bg {
@@ -121,6 +292,39 @@
         }
         to {
             background-position: var(--bg-width, 50px) 0;
+        }
+    }
+
+    .email-wrapper {
+        height: 0;
+        overflow: hidden;
+    }
+
+    .email-inner {
+        padding-bottom: 10px;
+    }
+
+    .animate-frame-swap {
+        animation: frame-swap 4s steps(1) infinite;
+    }
+    @keyframes frame-swap {
+        0%, 50% {
+            transform: translateY(0);
+        }
+        50.01%, 100% {
+            transform: translateY(-50%);
+        }
+    }
+
+    .animate-spinner {
+        animation: spinner 1s steps(16) infinite;
+    }
+    @keyframes spinner {
+        from {
+            transform: translateY(0);
+        }
+        to {
+            transform: translateY(-100%);
         }
     }
 </style>
