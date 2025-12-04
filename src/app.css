@@ -1,5 +1,60 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+
+@font-face {
+	font-family: "PICO-8";
+	/* TODO: convert to woff2 */
+	src: url("/fonts/PICO-8.ttf") format("woff2");
+	font-weight: normal;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Absolute";
+	/* TODO: convert to woff2 */
+	src: url("/fonts/Absolute.ttf") format("woff2");
+	font-weight: normal;
+	font-style: normal;
+}
 
 @theme {
+	--color-p-white: #fff1e8;
+	--color-p-lightgray: #c2c3c7;
+	--color-p-gray: #83769c;
+	--color-p-red-1: #ff004d;
+	--color-p-red-2: #be1250;
+	--color-p-red-3: #7e2553;
+	--color-p-navy: #111d35;
+	--color-p-navy-light: #1d2b53;
 
+	--font-pico: "PICO-8", monospace;
+	--font-title: "Absolute", monospace;
+	--default-font-family: var(--font-pico);
+
+	--text-p8: 1.55rem;
+	--text-p8-title: 4.95rem;
+	--leading-p8-title: 0.85;
+}
+
+@layer utilities {
+	/* .underline-p8 {
+		text-decoration: underline;
+		text-underline-offset: 5px;
+		text-decoration-thickness: 5px;
+	} */
+	.underline-p8 {
+		position: relative;
+	}
+	.underline-p8::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: calc(100% - 5px);
+		height: 5px;
+		/* background-color: currentColor; */
+		background-image: linear-gradient(to right, var(--underline-color, currentColor) 5px, transparent 5px);
+		background-size: 10px 100%;
+		transform: translateY(10px);
+		pointer-events: none;
+	}
 }
