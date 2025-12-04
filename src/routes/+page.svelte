@@ -215,14 +215,14 @@
 
             downscale
             
-            is a <a href="https://hackclub.com" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">Hack Club</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3"> program about building retro games with <a href="https://www.lexaloffle.com/pico-8.php" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">PICO-8</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3">.
+            is a <span class="inline-block"><a href="https://hackclub.com" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">Hack Club</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3"></span> program about building retro games with <span class="inline-block"><a href="https://www.lexaloffle.com/pico-8.php" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">PICO-8</a> <img src="/new-tab.png" alt="" class="h-[30px] inline -ml-3"></span>.
 
 
             
         </p>
 
-        <div class="mt-10 mb-6 mx-auto w-max flex flex-col items-center">
-            <div class="email-wrapper" bind:this={emailWrapper}>
+        <div class="mt-10 mb-6 mx-auto w-full flex flex-col items-center max-w-xl">
+            <div class="email-wrapper w-full" bind:this={emailWrapper}>
                 <div class="email-inner">
                     <div class="relative overflow-hidden" bind:this={emailInputContainer}>
                         <input
@@ -230,7 +230,7 @@
                             placeholder="YOUR EMAIL"
                             bind:value={emailValue}
                             disabled={isSubmitted && !hasError}
-                            class="border-p-red-2 border-[5px] pt-[10px] pb-[6px] px-[15px] w-max text-p8 text-p-red-1 placeholder:text-p-red-2/50 focus:outline-none disabled:cursor-default"
+                            class="border-p-red-2 border-[5px] pt-[10px] pb-[6px] px-[15px] w-full text-p8 text-p-red-1 placeholder:text-p-red-2/50 focus:outline-none disabled:cursor-default"
                         />
                         {#if isSubmitting}
                             <div class="absolute right-[20px] top-1/2 -translate-y-1/2">
