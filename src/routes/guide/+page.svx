@@ -1,0 +1,1220 @@
+<script>
+	import Challenge from '$lib/guide/Challenge.svelte';
+	import Prediction from '$lib/guide/Prediction.svelte';
+	import Reflection from '$lib/guide/Reflection.svelte';
+	import Experiment from '$lib/guide/Experiment.svelte';
+	import Diagram from '$lib/guide/Diagram.svelte';
+
+	const diagramSprite = `Sprite Sheet (simplified):
+
+  +-----+-----+-----+-----+---
+  | #0  | #1  | #2  | #3  | ...
+  |empty|ship |enemy|empty|
+  +-----+-----+-----+-----+---
+
+  Your code says: spr(1, 60, 100)
+  PICO-8 looks up slot 1, finds your ship,
+  draws it at position (60, 100) on screen.`;
+
+	const diagramLoop = `_init()   called ONCE when the game starts
+    |
+    v
+_update() ---> called 30 TIMES PER SECOND
+    |           (read input, move things)
+    v
+_draw()   ---> called 30 TIMES PER SECOND
+    |           (draw everything to screen)
+    |
+    +--- loops back to _update() forever`;
+
+	const diagramTables = `bullets = {}                    -- empty list
+
+add(bullets, {x=10, y=90})     -- list now has 1 item
+add(bullets, {x=30, y=80})     -- list now has 2 items
+
+bullets:
+  +------------------+
+  | {x=10, y=90}     | item 1
+  | {x=30, y=80}     | item 2
+  +------------------+
+
+for b in all(bullets) do        -- visits each item
+  b.y -= 4                      -- moves each one up
+end
+
+del(bullets, item)              -- removes one item`;
+
+	const diagramCollision = `  bullet (b)    enemy (e)
+      *          +--+
+                 |  |
+                 +--+
+
+  distance in x:  abs(b.x - e.x)
+  distance in y:  abs(b.y - e.y)
+
+  if BOTH distances are small (say, less than 6),
+  the objects are overlapping.
+
+  abs() gives you the distance without caring
+  about direction:
+    abs(10 - 7) = 3
+    abs(7 - 10) = 3`;
+
+	const diagramState = `game_over = false
+    |
+    v
++-- PLAYING --------+
+|   move ship       |
+|   shoot           |
+|   spawn           |
++--------+----------+
+         |
+   enemy reaches bottom
+         |
+         v
+   game_over = true
+         |
+         v
++-- GAME OVER ------+
+|   show score      |
+|   wait for        |
+|   restart         |
++-------------------+`;
+</script>
+
+<svelte:head>
+	<title>Build a Space Shooter! — downscale</title>
+</svelte:head>
+
+# Build a Space Shooter!
+
+### What you'll have by the end of this guide
+
+- A player spaceship that moves left and right
+- Bullets that fire upward
+- Enemy ships that fall from the top
+- Collision detection — bullets destroy enemies
+- A score counter
+- A game over screen with restart
+- **[Prize]!**
+
+---
+
+## Section 0 — What is PICO-8?
+
+<img src="https://cdn.hackclub.com/019cfcc3-746d-7116-a537-1831a9130cb7/jelpi_demo.gif" alt="PICO-8 Jelpi demo" />
+
+### Context
+
+PICO-8 is a fantasy console — a tiny, self-contained game-making machine that runs on your real computer. It has its own code editor, sprite editor, and sound editor in one window. Every game is called a cartridge.
+
+PICO-8 uses a language called Lua, which is simple and readable. The screen is always 128 by 128 pixels. These strict limits are a feature — they keep things simple and force creativity.
+
+### The three editor tabs you will use
+
+Press Escape to toggle between the game and the editor. Inside the editor, the tabs at the top:
+
+- **Code editor** (the &lt;/&gt; icon) — where you write Lua code
+- **Sprite editor** (the face icon) — where you draw your ship and enemies
+- **Sound editor** (the note icon) — for sound effects later
+
+<Prediction>
+
+**Think first:** PICO-8 limits you to a 128x128 screen, 16 colors, and small code size. Before continuing, think: why might strict limits actually help a beginner learn? Write down your answer or say it out loud.
+
+</Prediction>
+
+---
+
+## Section 1 — Draw Your Sprites
+
+<img src="https://cdn.hackclub.com/019cfcc5-1cbb-7879-a8b7-1e2bade2a322/sprite-editor.png" alt="PICO-8 sprite editor" width="256" height="256" />
+
+### Context
+
+Before writing code, you need two images: a player ship and an enemy. A sprite is a small image stored in PICO-8's sprite sheet. Each sprite lives in a numbered slot.
+
+### Concept — What is a sprite?
+
+Think of the sprite sheet as a grid of tiny canvases, each 8 pixels wide and 8 pixels tall. Every slot has a number. When your code says "draw sprite 1," PICO-8 looks up slot 1 and draws whatever image is there.
+
+<Diagram content={diagramSprite} />
+
+### Goal
+
+A player ship in slot 1 and an enemy in slot 2.
+
+<Challenge>
+
+**Challenge:** Open the sprite editor. Click slot 1. Before you draw, think about these constraints:
+
+- The sprite is only 8x8 pixels. You cannot draw fine detail.
+- The player ship should point upward (it shoots upward).
+- The enemy should look different from the player.
+
+Now draw both sprites. Spend no more than 2 minutes on each. They do not need to be good.
+
+</Challenge>
+
+<Prediction>
+
+**Think first:** Why does the enemy need to look different from the player? What would happen in gameplay if they looked identical?
+
+</Prediction>
+
+<Reflection>
+
+**Reflection:** We drew sprites before writing any code. What advantage does this give you as a learner starting a new project?
+
+</Reflection>
+
+---
+
+## Section 2 — The Game Loop
+
+### Context
+
+Every game is a loop. It checks input, updates the world, draws the result, and repeats — many times per second. Without this loop, the game would draw one frame and freeze.
+
+### Concept — The game loop
+
+PICO-8 expects you to define three special functions. It calls them automatically:
+
+<Diagram content={diagramLoop} />
+
+This pattern exists in almost every game engine. Learn it once, recognize it everywhere.
+
+### Goal
+
+A spaceship appears on screen and moves left and right with the arrow keys.
+
+### Tools
+
+These are the only tools you need for this section:
+
+| Code | Description |
+|------|-------------|
+| `btn(0)` | true when left arrow is held down |
+| `btn(1)` | true when right arrow is held down |
+| `cls()` | clears the entire screen to black |
+| `spr(n, x, y)` | draws sprite number n at position x, y |
+
+<Challenge>
+
+**Challenge:** You have `btn(0)`, `btn(1)`, the number 2, and two variables called `player_x` and `player_y`. Write the three functions:
+
+1. `_init()` should set the player's starting position. The screen is 128x128. Where should a centered ship near the bottom start?
+2. `_update()` should move the player left or right when arrows are pressed.
+3. `_draw()` should clear the screen and draw the player sprite.
+
+Try writing the code before opening any hints.
+
+</Challenge>
+
+<details>
+<summary>Hint 1</summary>
+
+To center horizontally on a 128-pixel screen, x should start around 64. To be near the bottom, y should be around 100.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+To move left, subtract from player_x. To move right, add to it. A speed of 2 feels reasonable.
+
+```lua
+if btn(0) then player_x -= 2 end
+```
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+In _draw(), always call cls() first, then spr(1, player_x, player_y).
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+function _init()
+ player_x = 64
+ player_y = 100
+end
+
+function _update()
+ if btn(0) then player_x -= 2 end
+ if btn(1) then player_x += 2 end
+end
+
+function _draw()
+ cls()
+ spr(1, player_x, player_y)
+end
+```
+
+</details>
+
+Press Escape to run the game. Your ship should appear and move.
+
+<Prediction>
+
+**Think first:** What would happen if you removed the `cls()` line from _draw()? The ship moves every frame, and each frame draws the sprite at its new position. Picture the result in your mind. Then remove cls() and run it.
+
+</Prediction>
+
+<Challenge>
+
+**Debug challenge:** A beginner writes this code. The ship does not move. Find the bug.
+
+```lua
+function _update()
+ if btn(0) then player_x -= 2 end
+ if btn(1) then player_y += 2 end
+end
+```
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+The second line changes `player_y` instead of `player_x`. Pressing right moves the ship down instead of right.
+
+</details>
+
+<Experiment>
+
+**Experiment:** Change the movement speed from 2 to 1. Then to 8. At what speed does the ship feel good to control? At what speed does it feel impossible? Why does speed matter for game feel, not just game logic?
+
+</Experiment>
+
+<Reflection>
+
+**Reflection:** Why does the game need to clear the screen and redraw everything 30 times per second? Why not just draw once?
+
+</Reflection>
+
+---
+
+## Section 3 — Storing Many Objects With Tables
+
+### Context
+
+Before we add bullets, we need to understand how to store many things. A single bullet is simple — one x, one y. But the player will fire many bullets, and they all need to exist at the same time. We need a list.
+
+### Concept — Tables
+
+In Lua, a table is a list that can hold many items. You can add items, remove items, and loop through all of them.
+
+<Diagram content={diagramTables} />
+
+Each item in the list is itself a mini-object with named fields like x and y. You access them with dot notation: `b.x` and `b.y`.
+
+<Prediction>
+
+**Think first:** Why can't we just use two variables, `bullet_x` and `bullet_y`, instead of a table? What happens when the player fires a second bullet while the first is still on screen?
+
+</Prediction>
+
+<Challenge>
+
+**Challenge:** Without looking ahead, answer this: if you have a table called `enemies` and you write `add(enemies, {x=50, y=0})` three times, how many items are in the table? What are their x values?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+Three items. All have x=50 and y=0. Each `add()` creates a new, separate item in the list.
+
+</details>
+
+<Reflection>
+
+**Reflection:** This table pattern — create empty list, add items, loop through items, delete items — will appear again for enemies. It is one of the most common patterns in game programming. Make sure you understand it before moving on.
+
+</Reflection>
+
+---
+
+## Section 4 — Shooting Bullets
+
+### Context
+
+Our ship can move, but it cannot shoot. We now have the tool we need — tables — to store multiple bullets. This section focuses on creating bullets and making them move.
+
+### Goal
+
+Press Z to fire bullets upward from the player's position.
+
+### Tools
+
+| Code | Description |
+|------|-------------|
+| `btnp(4)` | true ONCE when Z is first pressed (not while held) |
+| `add(list, item)` | adds an item to a table |
+| `del(list, item)` | removes an item from a table |
+| `pset(x, y, color)` | draws a single pixel on screen |
+
+<Challenge>
+
+**Challenge 1:** In _init(), create an empty table called `bullets`.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+bullets = {}
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 2:** In _update(), when the player presses Z, add a new bullet to the table. You need to decide: where should a bullet start? You have `player_x`, `player_y`, and the fact that sprites are 8 pixels wide. Fill in the question marks:
+
+```lua
+add(bullets, {x=?, y=?})
+```
+
+</Challenge>
+
+<details>
+<summary>Hint 1</summary>
+
+The bullet should appear at the player's location.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+player_x is the left edge of the sprite. The sprite is 8 pixels wide, so the center is at player_x + 4.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+if btnp(4) then
+ add(bullets, {x=player_x+4, y=player_y})
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 3:** Bullets need to move upward every frame. Write a loop that goes through all bullets and subtracts 4 from each bullet's y position. Also: if a bullet has gone above the top of the screen (y less than 0), remove it from the list. Why is removing it important?
+
+</Challenge>
+
+<details>
+<summary>Hint</summary>
+
+```lua
+for b in all(bullets) do
+ -- move b upward
+ -- if b is off screen, delete it
+end
+```
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for b in all(bullets) do
+ b.y -= 4
+ if b.y < 0 then del(bullets, b) end
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 4:** In _draw(), loop through all bullets and draw each one as a white pixel. White is color 7.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for b in all(bullets) do
+ pset(b.x, b.y, 7)
+end
+```
+
+</details>
+
+Run the game. Press Z to shoot.
+
+<Prediction>
+
+**Think first:** What is the difference between `btn(4)` and `btnp(4)`? If you used `btn(4)` instead, what would happen when you hold Z? Predict, then change it and see.
+
+</Prediction>
+
+<Challenge>
+
+**Debug challenge:** A player reports: "my bullets appear, but they don't move." Here is their update code:
+
+```lua
+if btnp(4) then
+ add(bullets, {x=player_x+4, y=player_y})
+end
+```
+
+That is the entire bullet section of their _update(). What is missing?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+There is no loop to move the bullets. They are created but never updated. The `for b in all(bullets)` loop that subtracts from b.y is missing entirely.
+
+</details>
+
+<Experiment>
+
+**Experiment:** Can you make bullets that *accelerate* — start slow and get faster? What would you need to add to each bullet object, and what would you change in the movement loop? Try it.
+
+</Experiment>
+
+<Reflection>
+
+**Reflection:** We never delete bullets that are still on screen — only the ones that pass y=0. What would happen to memory if we fired thousands of bullets and never deleted any of them?
+
+</Reflection>
+
+---
+
+## Section 5 — Spawning Enemies
+
+### Context
+
+We have a ship that shoots, but nothing to shoot at. We need enemies that appear at the top and fall downward. This uses the exact same table pattern as bullets.
+
+### Concept — Random spawning
+
+`rnd(n)` returns a random number between 0 and n. We can use it to make events happen unpredictably.
+
+```lua
+rnd(100) < 2
+```
+
+This expression is true roughly 2% of the time. Since _update() runs 30 times per second, a 2% chance per frame means roughly one enemy every 1.5 seconds on average.
+
+<Prediction>
+
+**Think first:** If you change `rnd(100) < 2` to `rnd(100) < 50`, about how often would enemies spawn? What would the game look like? Think carefully — 50% chance, 30 frames per second. Predict before continuing.
+
+</Prediction>
+
+### Goal
+
+Enemies spawn randomly at the top of the screen and fall downward.
+
+<Challenge>
+
+**Challenge 1:** In _init(), create an empty table called `enemies`.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+enemies = {}
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 2:** In _update(), with approximately 2% chance each frame, add a new enemy to the table. Enemies start at y=0 (the top). Their x should be random. The screen is 128 pixels wide and sprites are 8 pixels wide. What range should x be?
+
+</Challenge>
+
+<details>
+<summary>Hint 1</summary>
+
+If x could be 128, the sprite would start off the right edge. Since sprites are 8 pixels wide, the maximum x should be 120 to stay fully on screen.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+if rnd(100) < 2 then
+ add(enemies, {x=rnd(120), y=0})
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 3:** Write a loop that moves each enemy downward by 1 pixel per frame. If an enemy passes the bottom of the screen (y greater than 128), remove it.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for e in all(enemies) do
+ e.y += 1
+ if e.y > 128 then del(enemies, e) end
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 4:** In _draw(), draw each enemy using sprite 2.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for e in all(enemies) do
+ spr(2, e.x, e.y)
+end
+```
+
+</details>
+
+Run the game. Enemies should appear and fall.
+
+<Challenge>
+
+**Debug challenge:** A beginner's enemies all spawn in the same spot — the top-left corner. Here is their spawn code:
+
+```lua
+add(enemies, {x=0, y=0})
+```
+
+What did they forget?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+They used `x=0` instead of `x=rnd(120)`. Every enemy spawns at the same position because there is no randomness.
+
+</details>
+
+<Experiment>
+
+**Experiment:** Make enemies spawn only in the right half of the screen. What value do you pass to rnd(), and what do you add to the result? Think about the math before trying it.
+
+</Experiment>
+
+<Reflection>
+
+**Reflection:** You have now used the same pattern twice — empty table, add items with random properties, loop to update, loop to draw, delete when off screen. Could you use this pattern for something else, like stars or particles? What would change?
+
+</Reflection>
+
+---
+
+## Section 6 — Collision Detection
+
+### Context
+
+Bullets fly up. Enemies fall down. But nothing happens when they meet. We need to detect when a bullet and an enemy are close enough to be "touching."
+
+### Concept — Distance-based collision
+
+The simplest collision check: are two objects within a certain distance of each other on both axes?
+
+<Diagram content={diagramCollision} />
+
+`abs()` returns the absolute value — the distance without negative signs. We check both x and y because two objects could be at the same height but on opposite sides of the screen.
+
+<Prediction>
+
+**Think first:** Why do we need to check BOTH x distance AND y distance? What would go wrong if we only checked x distance? Picture a bullet on the left side and an enemy on the left side but 100 pixels apart vertically. Would they "collide"?
+
+</Prediction>
+
+### Goal
+
+When a bullet hits an enemy, both are destroyed and the score increases.
+
+### Tools
+
+| Code | Description |
+|------|-------------|
+| `abs(n)` | absolute value of n |
+| `print(text, x, y, color)` | draws text on screen |
+| `..` | joins strings: `"score: "..score` |
+
+<Challenge>
+
+**Challenge 1:** Add a `score` variable to _init(), starting at 0.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+score = 0
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 2:** In _update(), write a collision check. You need to compare every bullet against every enemy. That means a loop inside a loop. When a bullet and enemy are within 6 pixels of each other on BOTH axes, delete both and add 1 to the score.
+
+</Challenge>
+
+<details>
+<summary>Hint 1</summary>
+
+The outer loop visits each bullet. The inner loop visits each enemy. Inside both loops, you check the distance.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+The condition: `abs(b.x - e.x) < 6 and abs(b.y - e.y) < 6`
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for b in all(bullets) do
+ for e in all(enemies) do
+  if abs(b.x-e.x)<6 and abs(b.y-e.y)<6 then
+   del(bullets, b)
+   del(enemies, e)
+   score += 1
+  end
+ end
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 3:** Display the score in the top-left corner of the screen. Use color 7 (white).
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+print("score: "..score, 2, 2, 7)
+```
+
+</details>
+
+Run the game. Shoot enemies. The score should increase.
+
+<Challenge>
+
+**Debug challenge:** A player says: "I shoot enemies and sometimes it works, but sometimes bullets pass right through them." Their collision threshold is 3 instead of 6. Why does a smaller number cause missed collisions?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+With a threshold of 3, the bullet and enemy must be within 3 pixels of each other. Since bullets move 4 pixels per frame, a bullet can jump from 4 pixels above an enemy to right below it in a single frame, never actually being within 3 pixels. This is sometimes called "tunneling." A larger threshold makes hits more forgiving.
+
+</details>
+
+<Experiment>
+
+**Experiment:** Change the collision distance from 6 to 30, then to 1. With 30, what happens? With 1, can you hit anything? What does this tell you about the relationship between collision size, bullet speed, and game difficulty?
+
+</Experiment>
+
+<Reflection>
+
+**Reflection:** The collision check compares every bullet against every enemy. If you had 100 bullets and 100 enemies, how many comparisons would that be? Why might this matter for performance?
+
+</Reflection>
+
+---
+
+## Section 7 — Game State Flag
+
+### Context
+
+Right now the game never ends. Enemies that reach the bottom are quietly deleted. We need a consequence: if an enemy reaches the bottom, the game should stop.
+
+### Concept — Game state
+
+A game state is a variable that tracks what "mode" the game is in. Right now the game has only one mode: playing. We will add a second: game over.
+
+<Diagram content={diagramState} />
+
+This is the simplest possible state machine. The same concept scales to menus, pause screens, cutscenes, and level transitions.
+
+### Goal
+
+When an enemy reaches the bottom, the game stops and shows "game over" with the score.
+
+<Challenge>
+
+**Challenge 1:** Add a `game_over` variable to _init(), set to `false`.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+game_over = false
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 2:** Find the enemy movement loop. Currently, enemies that pass y=128 are deleted. Change this: instead of deleting them, set `game_over` to true when an enemy's y is greater than 120 (so the enemy is still visible when the game ends).
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+for e in all(enemies) do
+ e.y += 1
+ if e.y > 120 then
+  game_over = true
+ end
+end
+```
+
+</details>
+
+<Prediction>
+
+**Think first:** Right now, even after game_over becomes true, _update() keeps running. Enemies keep falling, bullets keep firing. Why is that a problem? What would the player see?
+
+</Prediction>
+
+<Challenge>
+
+**Challenge 3:** At the very top of _update(), add a guard. If game_over is true, do nothing — just `return` immediately. The keyword `return` exits the function, skipping all the code below it.
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+if game_over then
+ return
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge 4:** In _draw(), after cls(), if game_over is true, display "game over" and the score, then return so the normal game is not drawn underneath.
+
+</Challenge>
+
+<details>
+<summary>Hint</summary>
+
+Use print() for text. Pick positions that look roughly centered on the 128x128 screen. Then return to skip drawing the ship, bullets, and enemies.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+if game_over then
+ print("game over!", 40, 55, 8)
+ print("score: "..score, 40, 65, 7)
+ return
+end
+```
+
+</details>
+
+Run the game. Let an enemy reach the bottom. You should see the game over screen.
+
+<Challenge>
+
+**Debug challenge:** A beginner writes the guard at the BOTTOM of _update() instead of the top:
+
+```lua
+function _update()
+ if btn(0) then player_x -= 2 end
+ if btn(1) then player_x += 2 end
+ -- ...all game logic...
+ if game_over then return end
+end
+```
+
+Why does this not work?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+By the time the guard is reached, all the game logic has already run. The ship still moves, bullets still fire, enemies still spawn. The `return` at the bottom prevents nothing because there is nothing after it.
+
+</details>
+
+<Reflection>
+
+**Reflection:** The `return` keyword exits a function early. Why is this useful for game states? How is it different from just wrapping all the code in an if-else?
+
+</Reflection>
+
+---
+
+## Section 8 — Restarting the Game
+
+### Context
+
+The game ends, but the player is stuck on the game over screen forever. We need a way to restart.
+
+### Goal
+
+Pressing X on the game over screen restarts the game.
+
+<Prediction>
+
+**Think first:** We already have a function that sets up the entire game from scratch: _init(). What would happen if we just called _init() again? Would the score reset? Would the enemy and bullet tables be cleared? Think through what _init() does.
+
+</Prediction>
+
+<Challenge>
+
+**Challenge:** Modify the guard at the top of _update(). When game_over is true AND the player presses X (button 5, use btnp), call _init() to restart.
+
+</Challenge>
+
+<details>
+<summary>Hint</summary>
+
+btnp(5) is true once when X is pressed. You already have the guard from the previous section — just add a check inside it.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+if game_over then
+ if btnp(5) then _init() end
+ return
+end
+```
+
+</details>
+
+<Challenge>
+
+**Challenge:** Add a line to the game over screen in _draw() telling the player how to restart. Something like "press x to restart."
+
+</Challenge>
+
+<details>
+<summary>Solution</summary>
+
+```lua
+print("press x to restart", 22, 80, 6)
+```
+
+</details>
+
+Run the game. Die, see the score, press X, play again.
+
+<Challenge>
+
+**Debug challenge:** After adding restart, a tester reports: "I press X on the game over screen and the score resets to 0, but old enemies are still on screen for a split second." What could cause this?
+
+</Challenge>
+
+<details>
+<summary>Answer</summary>
+
+This would happen if _init() resets the score but does not recreate the enemies table — old enemies persist for one frame until the next _update() clears them. The fix: make sure _init() sets `enemies = {}`, creating a fresh empty table.
+
+</details>
+
+<Reflection>
+
+**Reflection:** Calling _init() to restart is elegant because it reuses existing code. But it relies on _init() setting up EVERYTHING. What would go wrong if you later added a variable (like lives or level) but forgot to initialize it in _init()?
+
+</Reflection>
+
+---
+
+## Section 9 — Verify Your Understanding
+
+Before looking at the final code, test yourself. These questions check whether you understand the game or just followed steps.
+
+<Challenge>
+
+**Question 1:** Without looking at your code, list the three PICO-8 functions that form the game loop and describe when each one runs.
+
+</Challenge>
+
+<Challenge>
+
+**Question 2:** The game uses tables for bullets and enemies. Explain why a table is necessary — what would go wrong with a single variable?
+
+</Challenge>
+
+<Challenge>
+
+**Question 3:** Collision detection checks `abs(b.x-e.x)<6 and abs(b.y-e.y)<6`. In your own words, what does this line do? Why `and` instead of `or`?
+
+</Challenge>
+
+<Challenge>
+
+**Question 4:** What does the `return` keyword do at the top of _update() when game_over is true? What would happen without it?
+
+</Challenge>
+
+If you can answer all four confidently, you understand the game. If any feel shaky, go back and reread that section.
+
+---
+
+## Section 10 — Reference Listing
+
+This is the complete code for comparison. Do not copy it. Use it only to check your work. If your code works, it does not need to match this exactly.
+
+<details>
+<summary>Show complete code</summary>
+
+```lua
+function _init()
+ player_x = 64
+ player_y = 100
+ bullets = {}
+ enemies = {}
+ score = 0
+ game_over = false
+end
+
+function _update()
+
+ if game_over then
+  if btnp(5) then _init() end
+  return
+ end
+
+ if btn(0) then player_x -= 2 end
+ if btn(1) then player_x += 2 end
+
+ if btnp(4) then
+  add(bullets, {x=player_x+4, y=player_y})
+ end
+
+ for b in all(bullets) do
+  b.y -= 4
+  if b.y < 0 then del(bullets, b) end
+ end
+
+ if rnd(100) < 2 then
+  add(enemies, {x=rnd(120), y=0})
+ end
+
+ for e in all(enemies) do
+  e.y += 1
+  if e.y > 120 then game_over = true end
+ end
+
+ for b in all(bullets) do
+  for e in all(enemies) do
+   if abs(b.x-e.x)<6 and abs(b.y-e.y)<6 then
+    del(bullets, b)
+    del(enemies, e)
+    score += 1
+   end
+  end
+ end
+
+end
+
+function _draw()
+
+ cls()
+
+ if game_over then
+  print("game over!", 40, 55, 8)
+  print("score: "..score, 40, 65, 7)
+  print("press x to restart", 22, 80, 6)
+  return
+ end
+
+ print("score: "..score, 2, 2, 7)
+
+ spr(1, player_x, player_y)
+
+ for b in all(bullets) do
+  pset(b.x, b.y, 7)
+ end
+
+ for e in all(enemies) do
+  spr(2, e.x, e.y)
+ end
+
+end
+```
+
+</details>
+
+---
+
+## Section 11 — Design Challenges
+
+You have a working game. Now prove you understand it by modifying it without instructions. These are ordered by difficulty.
+
+### Guided modifications
+
+Change one value. Predict what will happen before you change it.
+
+- Change enemy speed from 1 to 3. How does difficulty change?
+- Change spawn rate from 2 to 5. How crowded does the screen get?
+- Change bullet speed from 4 to 8. Does this affect collision reliability? Why?
+
+### Partial construction
+
+Build something new using patterns you already know.
+
+<Challenge>
+
+**Lives system:** Add a `lives` variable starting at 3. When an enemy reaches the bottom, subtract 1 from lives and delete that enemy instead of immediately ending the game. End the game only when lives reaches 0. Display lives on screen.
+
+</Challenge>
+
+<details>
+<summary>Hint 1</summary>
+
+Add `lives = 3` in _init().
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+In the enemy movement loop, instead of `game_over = true`, write `lives -= 1` and `del(enemies, e)`. Then check `if lives <= 0 then game_over = true end`.
+
+</details>
+
+<Challenge>
+
+**Difficulty scaling:** Make enemies fall faster as the score increases. What math would connect score to speed?
+
+</Challenge>
+
+<details>
+<summary>Hint</summary>
+
+Instead of `e.y += 1`, try `e.y += 1 + score * 0.05`. At score 0, speed is 1. At score 20, speed is 2.
+
+</details>
+
+### Independent design
+
+These require you to combine patterns in new ways. No hints provided.
+
+- Add a starfield background — a table of white dots that scroll downward slowly, creating a sense of motion.
+- Add explosion particles when an enemy is destroyed — spawn several small objects that spread outward and disappear after a few frames.
+- Make enemies that shoot back — enemies add to an `enemy_bullets` table, and you check collision between enemy bullets and the player.
+- Add sound effects using `sfx()`.
+
+### Break the game
+
+Try each of these deliberately. Observe what happens and explain why.
+
+- Remove `cls()` from _draw()
+- Set bullet speed to a positive number instead of negative
+- Set spawn rate to `rnd(100) < 100`
+- Remove the line that deletes off-screen bullets
+- Change `and` to `or` in the collision check
+
+---
+
+## Quick Reference
+
+### Buttons
+
+| Code | Action |
+|------|--------|
+| `btn(0)` | left |
+| `btn(1)` | right |
+| `btn(2)` | up |
+| `btn(3)` | down |
+| `btn(4)` | Z |
+| `btn(5)` | X |
+| `btnp(n)` | pressed this frame only |
+
+### Drawing
+
+| Code | Description |
+|------|-------------|
+| `cls()` | clear screen |
+| `spr(n,x,y)` | draw sprite |
+| `pset(x,y,c)` | draw pixel |
+| `print(s,x,y,c)` | draw text |
+| `circfill(x,y,r,c)` | filled circle |
+| `rectfill(x,y,x2,y2,c)` | filled rectangle |
+
+### PICO-8 Colors
+
+| | |
+|---|---|
+| 0 black | 8 red |
+| 1 dark blue | 9 orange |
+| 2 dark purple | 10 yellow |
+| 3 dark green | 11 green |
+| 4 brown | 12 blue |
+| 5 dark grey | 13 indigo |
+| 6 light grey | 14 pink |
+| 7 white | 15 peach |
+
+### Math Helpers
+
+| Code | Description |
+|------|-------------|
+| `rnd(n)` | random 0 to n |
+| `flr(n)` | floor |
+| `abs(n)` | absolute value |
+| `min(a,b)` | smaller value |
+| `max(a,b)` | larger value |
+
+---
+
+The PICO-8 manual is built in. Type `help` at the console prompt, or read it online: [lexaloffle.com/dl/docs/pico-8_manual.html](https://lexaloffle.com/dl/docs/pico-8_manual.html)
