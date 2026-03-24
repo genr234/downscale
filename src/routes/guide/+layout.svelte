@@ -1,5 +1,100 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import gsap from 'gsap';
+	import { ScrollTrigger } from 'gsap/ScrollTrigger';
+	import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
+
+	if (browser) {
+		gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+	}
+
 	let { children } = $props();
+
+	let guideContainer: HTMLDivElement = undefined!;
+	let sidebarList: HTMLOListElement = undefined!;
+	let headings = $state<{ id: string; text: string }[]>([]);
+	let activeIndex = $state(-1);
+	let isMobile = $state(false);
+	let menuOpen = $state(false);
+
+	let progressPx = $state(0);
+
+	// Compute progress track fill to match the active dot's position
+	$effect(() => {
+		if (!sidebarList || activeIndex < 0) return;
+		const li = sidebarList.children[activeIndex] as HTMLElement | undefined;
+		if (!li) return;
+		const listTop = sidebarList.getBoundingClientRect().top;
+		const liRect = li.getBoundingClientRect();
+		progressPx = liRect.top + liRect.height / 2 - listTop;
+	});
+
+	function handleClick(e: MouseEvent, id: string) {
+		e.preventDefault();
+		const el = document.getElementById(id);
+		if (el) {
+			menuOpen = false;
+			history.replaceState(null, '', `#${id}`);
+			gsap.to(window, {
+				scrollTo: { y: el, offsetY: 32 },
+				duration: 0.8,
+				ease: 'power2.inOut'
+			});
+		}
+	}
+
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+	}
+
+	// Check mobile breakpoint
+	$effect(() => {
+		const mql = window.matchMedia('(max-width: 1023px)');
+		isMobile = mql.matches;
+		const handler = (e: MediaQueryListEvent) => {
+			isMobile = e.matches;
+			if (!e.matches) menuOpen = false;
+		};
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
+	});
+
+	// GSAP ScrollTrigger for each section
+	$effect(() => {
+		if (!browser) return;
+
+		const h2s = Array.from(guideContainer.querySelectorAll('h2[id]'));
+		headings = h2s.map((el) => ({
+			id: el.id,
+			text: el.textContent ?? ''
+		}));
+
+		if (h2s.length === 0) return;
+
+		const triggers: ScrollTrigger[] = [];
+
+		h2s.forEach((h2, i) => {
+			const isLast = i === h2s.length - 1;
+			const st = ScrollTrigger.create({
+				trigger: h2,
+				start: 'top 20%',
+				endTrigger: isLast ? guideContainer : h2s[i + 1],
+				end: isLast ? 'bottom bottom' : 'top 20%',
+				onToggle: (self) => {
+					if (self.isActive) {
+						activeIndex = i;
+					}
+				}
+			});
+			triggers.push(st);
+		});
+
+		ScrollTrigger.refresh();
+
+		return () => {
+			triggers.forEach(t => t.kill());
+		};
+	});
 </script>
 
 <svelte:head>
@@ -8,15 +103,105 @@
 	<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </svelte:head>
 
+<!-- Mobile navbar (outside guide-page for sticky to work) -->
+{#if isMobile}
+	<div class="mobile-navbar">
+		<button class="menu-btn" onclick={toggleMenu} aria-label="Toggle outline">
+			<span class="menu-icon" class:open={menuOpen}>
+				<span></span>
+				<span></span>
+				<span></span>
+			</span>
+		</button>
+		<span class="mobile-section-label">
+			{activeIndex >= 0 && headings[activeIndex] ? headings[activeIndex].text : 'Build a Space Shooter'}
+		</span>
+	</div>
+
+	{#if menuOpen}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="menu-backdrop" onclick={() => menuOpen = false} onkeydown={() => {}}></div>
+		<nav class="menu-drawer" aria-label="Guide sections">
+			<ol class="drawer-list">
+				{#each headings as heading, i}
+					<li
+						class:active={activeIndex === i}
+						class:completed={activeIndex > -1 && i < activeIndex}
+					>
+						<a
+							href="#{heading.id}"
+							class:active={activeIndex === i}
+							onclick={(e) => handleClick(e, heading.id)}
+						>
+							<span class="drawer-number">{String(i + 1).padStart(2, '0')}</span>
+							<span>{heading.text}</span>
+						</a>
+					</li>
+				{/each}
+			</ol>
+		</nav>
+	{/if}
+{/if}
+
 <div class="guide-page">
-	<div class="guide-container">
-		{@render children()}
+	<div class="guide-layout">
+		<!-- Desktop sidebar -->
+		<nav class="guide-sidebar" aria-label="Guide sections">
+			<div class="sidebar-inner">
+				<ol class="sidebar-list" bind:this={sidebarList}>
+					{#each headings as heading, i}
+						<li
+							class:active={activeIndex === i}
+							class:completed={activeIndex > -1 && i < activeIndex}
+						>
+							<a
+								href="#{heading.id}"
+								class:active={activeIndex === i}
+								onclick={(e) => handleClick(e, heading.id)}
+								aria-current={activeIndex === i ? 'true' : undefined}
+							>
+								<span class="sidebar-number">{String(i + 1).padStart(2, '0')}</span>
+								<span class="sidebar-label">{heading.text}</span>
+							</a>
+						</li>
+					{/each}
+				</ol>
+				<div
+					class="sidebar-track"
+					style="--progress: {progressPx}px"
+				></div>
+			</div>
+		</nav>
+		<div class="guide-container" bind:this={guideContainer}>
+			{@render children()}
+		</div>
 	</div>
 </div>
 
 <style>
 	:global(html) {
 		background-color: var(--color-p-navy) !important;
+		scroll-padding-top: 2rem;
+		scrollbar-color: var(--color-p-red-1) transparent;
+		scrollbar-width: thin;
+	}
+
+	:global(html::-webkit-scrollbar) {
+		width: 8px;
+		background: transparent;
+	}
+
+	:global(html::-webkit-scrollbar-track) {
+		background: transparent;
+	}
+
+	:global(html::-webkit-scrollbar-thumb) {
+		background: var(--color-p-red-1);
+		border-radius: 0;
+	}
+
+	:global(html::-webkit-scrollbar-button) {
+		display: none;
 	}
 
 	.guide-page {
@@ -29,9 +214,303 @@
 		color: var(--color-p-lightgray);
 	}
 
+	:global(body) {
+		overflow-x: hidden;
+	}
+
+	/* ── Grid layout ── */
+
+	.guide-layout {
+		display: grid;
+		grid-template-columns: 220px minmax(0, 740px);
+		gap: 0 2rem;
+		max-width: calc(220px + 2rem + 740px);
+		margin: 0 auto;
+	}
+
+	/* ── Desktop sidebar ── */
+
+	.guide-sidebar {
+		position: sticky;
+		top: 3rem;
+		align-self: start;
+		max-height: calc(100vh - 6rem);
+		overflow-y: auto;
+	}
+
+	.guide-sidebar::-webkit-scrollbar {
+		width: var(--px);
+	}
+	.guide-sidebar::-webkit-scrollbar-track {
+		background: var(--color-p-navy);
+	}
+	.guide-sidebar::-webkit-scrollbar-thumb {
+		background: var(--color-p-navy-light);
+	}
+
+	.sidebar-inner {
+		position: relative;
+		padding-left: calc(var(--px) * 6);
+	}
+
+	/* Progress track */
+	.sidebar-track {
+		position: absolute;
+		left: calc(var(--px) * 1);
+		top: 0;
+		bottom: 0;
+		width: var(--px);
+		background: linear-gradient(
+			to bottom,
+			var(--color-p-red-2) var(--progress),
+			var(--color-p-navy-light) var(--progress)
+		);
+	}
+
+	/* Sidebar list */
+	.sidebar-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.sidebar-list li {
+		position: relative;
+	}
+
+	/* Notch squares */
+	.sidebar-list li::before {
+		content: '';
+		position: absolute;
+		left: calc(var(--px) * -5);
+		top: 50%;
+		transform: translateY(-50%);
+		width: calc(var(--px) * 2);
+		height: calc(var(--px) * 2);
+		background: var(--color-p-navy-light);
+	}
+
+	.sidebar-list li.completed::before {
+		background: var(--color-p-red-2);
+	}
+
+	.sidebar-list li.active::before {
+		background: var(--color-p-red-1);
+	}
+
+	/* Links */
+	.sidebar-list a {
+		display: flex;
+		gap: calc(var(--px) * 2);
+		padding: calc(var(--px) * 2) 0;
+		font-family: var(--font-pico);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: var(--color-p-gray);
+		text-decoration: none;
+		line-height: 1.4;
+	}
+
+	.sidebar-list a:hover {
+		color: var(--color-p-white);
+		text-decoration: none;
+	}
+
+	.sidebar-list li.completed > a {
+		color: var(--color-p-lightgray);
+	}
+
+	.sidebar-list li.completed > a:hover {
+		color: var(--color-p-white);
+	}
+
+	.sidebar-list a.active {
+		color: var(--color-p-red-1);
+	}
+
+	.sidebar-number {
+		flex-shrink: 0;
+		opacity: 0.5;
+	}
+
+	.sidebar-list a.active .sidebar-number {
+		opacity: 1;
+	}
+
+	/* ── Mobile navbar + drawer ── */
+
+	.mobile-navbar {
+		--px: 3px;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 20;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: var(--color-p-navy);
+		border-bottom: var(--px) solid var(--color-p-navy-light);
+		padding: 0.5rem 1rem;
+	}
+
+	.menu-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: calc(var(--px) * 2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.menu-icon {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		width: 18px;
+	}
+
+	.menu-icon span {
+		display: block;
+		height: var(--px);
+		background: var(--color-p-lightgray);
+		width: 100%;
+	}
+
+	.menu-icon.open span:nth-child(1) {
+		transform: translateY(calc(var(--px) + 4px)) rotate(45deg);
+	}
+	.menu-icon.open span:nth-child(2) {
+		opacity: 0;
+	}
+	.menu-icon.open span:nth-child(3) {
+		transform: translateY(calc(-1 * (var(--px) + 4px))) rotate(-45deg);
+	}
+
+	.mobile-section-label {
+		font-family: var(--font-pico);
+		font-size: 0.7rem;
+		color: var(--color-p-gray);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.menu-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 25;
+		animation: fade-in 0.1s ease-out;
+	}
+
+	.menu-drawer {
+		--px: 3px;
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		width: min(300px, 80vw);
+		background: var(--color-p-navy);
+		border-right: var(--px) solid var(--color-p-navy-light);
+		z-index: 30;
+		overflow-y: auto;
+		padding: 1.5rem;
+		animation: slide-in 0.15s ease-out;
+	}
+
+	@keyframes slide-in {
+		from { transform: translateX(-100%); }
+		to { transform: translateX(0); }
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.drawer-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.drawer-list li {
+		border-bottom: var(--px) solid var(--color-p-navy-light);
+	}
+
+	.drawer-list a {
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.75rem 0;
+		font-family: var(--font-pico);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: var(--color-p-gray);
+		text-decoration: none;
+		line-height: 1.4;
+	}
+
+	.drawer-list a:hover {
+		color: var(--color-p-white);
+	}
+
+	.drawer-list li.completed > a {
+		color: var(--color-p-lightgray);
+	}
+
+	.drawer-list li.completed > a:hover {
+		color: var(--color-p-white);
+	}
+
+	.drawer-list a.active {
+		color: var(--color-p-red-1);
+	}
+
+	.drawer-number {
+		flex-shrink: 0;
+		opacity: 0.5;
+	}
+
+	.drawer-list a.active .drawer-number {
+		opacity: 1;
+	}
+
+	/* ── Responsive ── */
+
+	@media (max-width: 1023px) {
+		.guide-page {
+			padding-top: 3rem;
+		}
+
+		.guide-layout {
+			grid-template-columns: 1fr;
+			max-width: 740px;
+		}
+
+		.guide-sidebar {
+			display: none;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.mobile-navbar,
+		.menu-backdrop,
+		.menu-drawer {
+			display: none;
+		}
+	}
+
+	/* ── Guide content ── */
+
 	.guide-container {
 		max-width: 740px;
-		margin: 0 auto;
+		min-width: 0;
 	}
 
 	/*

@@ -1,21 +1,20 @@
 {
   "mcpServers": {
-    "svelte-docs": {
+    "svelte": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "svelte-mcp-server"
+        "@sveltejs/mcp"
       ],
       "env": {}
     },
-    "svelte-check": {
+    "playwright": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "svelte-check-daemon",
-        "--stdio"
+        "@playwright/mcp@latest"
       ],
       "env": {}
     }

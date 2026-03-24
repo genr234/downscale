@@ -30,6 +30,7 @@
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.4.0",
 		"gsap": "^3.13.0",
-		"mdsvex": "^0.12.7"
+		"mdsvex": "^0.12.7",
+		"rehype-slug": "^6.0.0"
 	}
 }
