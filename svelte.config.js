@@ -9,7 +9,8 @@ const config = {
 	preprocess: [
 		vitePreprocess(),
 		mdsvex({
-			extensions: ['.svx']
+			extensions: ['.svx'],
+			smartypants: false
 		})
 	],
 

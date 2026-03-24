@@ -9,9 +9,10 @@
 
 <style>
 	.experiment {
-		border: 5px dotted var(--color-p-lightgray);
+		border: 3px dotted var(--color-p-gray);
 		padding: 1.25rem 1.5rem;
 		margin: 1.5rem 0;
-		background: var(--color-p-navy);
+		background: var(--color-p-navy-light);
+		color: var(--color-p-lightgray);
 	}
 </style>

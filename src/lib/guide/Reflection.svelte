@@ -9,10 +9,11 @@
 
 <style>
 	.reflection {
-		border: 5px solid var(--color-p-red-2);
-		border-top-width: 8px;
+		border: 3px solid var(--color-p-navy-light);
+		border-top: 3px solid var(--color-p-gray);
 		padding: 1.25rem 1.5rem;
 		margin: 1.5rem 0;
-		background: var(--color-p-navy);
+		background: var(--color-p-navy-light);
+		color: var(--color-p-lightgray);
 	}
 </style>

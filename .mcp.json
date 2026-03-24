@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "svelte-docs": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "svelte-mcp-server"
+      ],
+      "env": {}
+    },
+    "svelte-check": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "svelte-check-daemon",
+        "--stdio"
+      ],
+      "env": {}
+    }
+  }
+}

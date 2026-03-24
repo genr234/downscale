@@ -9,10 +9,11 @@
 
 <style>
 	.challenge {
-		border: 5px solid var(--color-p-red-1);
-		border-left-width: 10px;
+		border: 3px solid var(--color-p-navy-light);
+		border-left: 3px solid var(--color-p-red-2);
 		padding: 1.25rem 1.5rem;
 		margin: 1.5rem 0;
-		background: var(--color-p-navy);
+		background: var(--color-p-navy-light);
+		color: var(--color-p-lightgray);
 	}
 </style>
