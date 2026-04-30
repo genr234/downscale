@@ -272,15 +272,16 @@
         </div>
     </div>    
 
-    <section class="workshop-panel bg-p-navy-light max-w-4xl mx-auto px-12 max-sm:px-6 py-10 relative z-0">
+    <section class="workshop-panel bg-p-navy-light max-w-4xl mx-auto px-12 max-sm:px-6 py-18 relative z-0 mt-12">
         <div class="workshop-panel__notches" aria-hidden="true"></div>
+        <div class="workshop-panel__notches-bottom" aria-hidden="true"></div>
         <div class="grid grid-cols-[auto_1fr] max-md:grid-cols-1 gap-x-8 gap-y-5 items-start">
             <div class="workshop-kicker text-p8 text-p-gray uppercase leading-none max-md:w-max">
                 clubs
             </div>
             <div>
                 <h2 class="text-p8 text-p-white mb-5 leading-[1.35]">
-                    run a workshop!
+                    RUN A WORKSHOP!
                 </h2>
                 <p class="text-p8 text-p-white">
                     Existing clubs are invited to run a downscale workshop! Don't have a club and interested in running one?<span class="inline-block"><a href="https://hackclub.com" class="underline-p8 [--underline-color:var(--color-p-gray)] hover:bg-p-red-1" target="_blank">Start a new club</a><img src="/new-tab.png" alt="" class="h-[30px] inline ml-1"></span>!
@@ -326,8 +327,7 @@
     }
 
     .workshop-panel {
-        border-top: 5px solid var(--color-p-red-2);
-        box-shadow: inset 0 5px 0 var(--color-p-navy), inset 0 -5px 0 var(--color-p-navy);
+        border-bottom: 10px solid var(--color-p-navy);
     }
 
     .workshop-panel__notches {
@@ -335,8 +335,16 @@
         inset: 0;
         pointer-events: none;
         background:
-            linear-gradient(90deg, var(--color-p-red-1) 5px, transparent 5px) top left / 20px 5px repeat-x,
-            linear-gradient(90deg, transparent 5px, var(--color-p-red-3) 5px, var(--color-p-red-3) 10px, transparent 10px) bottom left / 20px 5px repeat-x;
+            linear-gradient(90deg, var(--color-p-red-1) 40px, transparent 5px) top left / 80px 5px repeat-x,
+            linear-gradient(90deg, transparent 40px, var(--color-p-navy) 5px, var(--color-p-navy) 80px, transparent 10px) bottom left / 80px 5px repeat-x;
+    }
+    .workshop-panel__notches-bottom {
+        position: absolute;
+        transform: translateY(15px);
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(90deg, var(--color-p-navy) 40px, transparent 5px, transparent 80px, var(--color-p-navy) 10px) bottom left / 80px 5px repeat-x;
     }
 
     .workshop-kicker {
